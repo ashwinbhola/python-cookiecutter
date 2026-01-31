@@ -1,0 +1,6 @@
+# Add requirements for setting up docs.
+
+sphinx
+sphinx-autodoc-typehints
+furo
+myst_parser

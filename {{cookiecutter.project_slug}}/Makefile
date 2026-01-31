@@ -1,0 +1,86 @@
+# ------------------------------------------------------------------------------
+# Variables
+# ------------------------------------------------------------------------------
+PYTHON_VERSION = {{cookiecutter.python_version}}
+VENV           = .venv
+PART           ?= minor
+
+ifeq ($(GITHUB_ACTIONS), true)
+    # This ensures we use the exact python that is active in the environment
+    PYTHON := $(shell which python)
+    PIP    := $(shell which pip)
+    BIN    := $(shell dirname $(PYTHON))
+else
+    VENV   = .venv
+    BIN    = $(VENV)/bin
+    PYTHON = $(BIN)/python
+    PIP    = $(BIN)/pip
+endif
+
+# ------------------------------------------------------------------------------
+# Commands
+# ------------------------------------------------------------------------------
+.DEFAULT_GOAL := help
+.PHONY: help venv install-requirements fix-lint lint test bump release reset-venv
+
+## help: Show this help message
+help:
+	@echo "Usage: make [target] [part=major|minor|patch]"
+	@echo ""
+	@echo "Targets:"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+venv:  ## Create virtual environment if it doesn't exist (Local only)
+ifndef GITHUB_ACTIONS
+	@test -d $(VENV) || python$(PYTHON_VERSION) -m venv $(VENV)
+	@$(PIP) install --upgrade pip
+endif
+
+install-requirements: venv  ## Install core and development dependencies
+	$(PIP) install -r requirements.txt -r requirements-dev.txt
+	$(PIP) install -e .
+	@if [ -d "docs" ]; then \
+		echo "Installing docs requirements..."; \
+		$(PIP) install -r docs/requirements.txt; \
+	fi
+
+fix-lint: venv  ## Auto-format and fix linting/typing issues
+	$(PYTHON) -m ruff format .
+	$(PYTHON) -m ruff check --fix .
+	$(PYTHON) -m mypy .
+
+lint: venv  ## Audit code for linting and type safety
+	$(PYTHON) -m ruff check .
+	$(PYTHON) -m mypy .
+
+test: venv  ## Run pytest with 100% coverage enforcement
+	$(PYTHON) -m pytest
+
+git-config:
+ifeq ($(GITHUB_ACTIONS), true)
+	@git config --local user.name "github-actions[bot]"
+	@git config --local user.email "github-actions[bot]@users.noreply.github.com"
+endif
+
+bump: venv git-config  ## Increment version (usage: make bump PART=patch)
+	$(BIN)/bump-my-version bump $(PART)
+	@echo "Version bumped to: $$(grep '^version =' pyproject.toml | sed -E 's/.*["'\'']([^"'\'']+)["'\''].*/\1/')"
+
+release: bump  ## Setup git, bump version, and push tags (Safe for CI and Local)
+	git push origin HEAD --tags
+
+reset-venv:  ## Wipe and recreate the virtual environment
+	rm -rf $(VENV)
+	$(MAKE) install-requirements
+
+docs: venv ## Generate HTML documentation using Sphinx
+	@if [ -d "docs" ]; then \
+		echo "Generating documentation..."; \
+		$(BIN)/sphinx-build -b html docs/source docs/build; \
+		echo "✅ Docs generated at: docs/build/index.html"; \
+	else \
+		echo "Docs directory not found."; \
+	fi
+
+update-cc:  ## Updates the project with cc that generated it
+	cruft update

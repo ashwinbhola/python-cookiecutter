@@ -1,0 +1,10 @@
+{
+    "full_name": "Your Name",
+    "email": "you@example.com",
+    "project_name": "Project Name",
+    "project_slug": "{{ cookiecutter.project_name.lower().replace(' ', '-') }}",
+    "module_name": "{{ cookiecutter.project_slug.replace('-', '_') }}",
+    "short_description": "A python library for {{ cookiecutter.project_name }}",
+    "python_version": ["3.10", "3.11", "3.12", "3.13", "3.14"],
+    "create_docs": ["yes", "no"]
+}
