@@ -31,7 +31,7 @@ make install-requirements  # Sets up a python env with all the installed depende
 make fix-lint  # Format code and fix lint errors
 make lint  # Run linting checks
 make test  # Run tests
-make bump part=minor  # Increment version
+make bump PART=minor  # Increment version
 make help  # View all make commands
 ```
 
